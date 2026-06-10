@@ -1,0 +1,80 @@
+:root {
+  /* Backgrounds */
+  --color-bg: #0d0d0d;
+  --color-surface: #1a1a1a;
+  --color-surface-2: #242424;
+  --color-surface-3: #2e2e2e;
+  --color-border: rgba(255,255,255,0.07);
+  --color-border-strong: rgba(255,255,255,0.14);
+
+  /* Text */
+  --color-text: #ffffff;
+  --color-text-2: #a0a0a0;
+  --color-text-3: #606060;
+
+  /* Brand yellow — Solflare style */
+  --color-yellow: #f0c93a;
+  --color-yellow-hover: #f5d45a;
+  --color-yellow-dim: rgba(240,201,58,0.12);
+  --color-yellow-border: rgba(240,201,58,0.3);
+
+  /* Status */
+  --color-success: #4ade80;
+  --color-success-bg: rgba(74,222,128,0.1);
+  --color-danger: #f87171;
+  --color-danger-bg: rgba(248,113,113,0.1);
+  --color-warning: #f0c93a;
+  --color-warning-bg: rgba(240,201,58,0.1);
+
+  /* Typography */
+  --font-ui: 'DM Sans', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+
+  /* Radius */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
+}
+
+@keyframes fadeSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pulse {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.15);
+    opacity: 0.7;
+  }
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+.animate-fade-slide-in {
+  animation: fadeSlideIn 300ms ease-out forwards;
+}
+
+.animate-pulse-custom {
+  animation: pulse 2s infinite ease-in-out;
+}
+
+.cursor-blink::after {
+  content: '▋';
+  color: var(--color-yellow);
+  animation: blink 1s step-end infinite;
+  margin-left: 2px;
+}

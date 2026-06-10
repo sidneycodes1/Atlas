@@ -1,0 +1,13 @@
+{
+  "functions": {
+    "src/app/api/recover/route.ts": {
+      "maxDuration": 60
+    },
+    "src/app/api/stream-transaction/route.ts": {
+      "maxDuration": 60
+    }
+  },
+  "env": {
+    "NEXT_PUBLIC_SOLANA_NETWORK": "devnet"
+  }
+}
