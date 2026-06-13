@@ -23,7 +23,7 @@ export function PrivyAppProvider({ children }: { children: React.ReactNode }) {
         router.push("/dashboard");
       }}
       config={{
-        loginMethods: ["google"],
+        loginMethods: ["google", "wallet"],
         appearance: {
           theme: "dark",
           accentColor: "#f0c93a",

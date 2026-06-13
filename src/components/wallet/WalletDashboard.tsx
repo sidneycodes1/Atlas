@@ -4,6 +4,9 @@ import React, { useState } from "react";
 import { ArrowUpRight, ArrowDownLeft, Coins, ExternalLink, Loader2 } from "lucide-react";
 import { cn, truncateAddress } from "@/lib/utils";
 
+// Add Eye/EyeOff for balance masking
+import { Eye, EyeOff } from "lucide-react";
+
 export interface DashboardTransaction {
   signature: string;
   type: "Transfer" | "Airdrop" | "Recovery";
@@ -23,6 +26,7 @@ interface WalletDashboardProps {
   transactions: DashboardTransaction[];
   onSendClick: () => void;
   onAirdropClick: () => void;
+  onDepositClick: () => void;
   isAirdropLoading: boolean;
   className?: string;
 }
@@ -33,10 +37,17 @@ export default function WalletDashboard({
   transactions,
   onSendClick,
   onAirdropClick,
+  onDepositClick,
   isAirdropLoading,
   className,
 }: WalletDashboardProps) {
   const [hoveredBadge, setHoveredBadge] = useState<string | null>(null);
+  const [showBalance, setShowBalance] = useState(true);
+
+  // Hardcode static rate for display purposes
+  // TODO: replace with live price feed
+  const SOL_TO_USD = 150;
+  const usdValue = balance * SOL_TO_USD;
 
   return (
     <div className={cn("flex flex-col gap-6", className)}>
@@ -58,34 +69,55 @@ export default function WalletDashboard({
         </div>
 
         <div className="my-4 z-10">
-          <span className="text-[10px] font-bold text-[var(--color-text-2)] uppercase tracking-wider font-mono">
-            AVAILABLE BALANCE
-          </span>
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] font-bold text-[var(--color-text-2)] uppercase tracking-wider font-mono">
+              AVAILABLE BALANCE
+            </span>
+            <button 
+              onClick={() => setShowBalance(!showBalance)}
+              className="text-[var(--color-text-3)] hover:text-white transition-colors"
+            >
+              {showBalance ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+            </button>
+          </div>
           <div className="text-[var(--color-yellow)] font-mono text-4xl md:text-5xl font-bold mt-1 tracking-tight flex items-baseline gap-2">
-            {balance.toFixed(4)} <span className="text-lg text-white font-sans font-medium">SOL</span>
+            {showBalance ? balance.toFixed(4) : "••••••"} 
+            <span className="text-lg text-white font-sans font-medium flex items-center gap-1">
+              <Coins className="w-4 h-4 text-[var(--color-yellow)]" /> SOL
+            </span>
+          </div>
+          <div className="text-xs text-[var(--color-text-2)] font-mono mt-1">
+            {showBalance ? `≈ $${usdValue.toFixed(2)} USD` : "≈ $•••••• USD"}
           </div>
         </div>
 
         {/* Actions Row */}
-        <div className="flex gap-3 mt-2 z-10">
+        <div className="flex flex-col sm:flex-row gap-3 mt-2 z-10">
           <button
             onClick={onSendClick}
-            className="flex-1 bg-[var(--color-yellow)] hover:bg-[var(--color-yellow-hover)] text-black py-3 px-4 rounded-[var(--radius-lg)] font-bold text-xs transition duration-200 flex items-center justify-center gap-2 shadow-[0_0_15px_rgba(240,201,58,0.15)] border-0"
+            className="w-full sm:flex-1 bg-[var(--color-yellow)] hover:bg-[var(--color-yellow-hover)] text-black py-3 px-4 rounded-[var(--radius-lg)] font-bold text-xs transition duration-200 flex items-center justify-center gap-2 shadow-[0_0_15px_rgba(240,201,58,0.15)] border-0"
           >
             <ArrowUpRight className="w-4 h-4 text-black" /> SEND SOL
           </button>
           
           <button
+            onClick={onDepositClick}
+            className="w-full sm:flex-1 bg-[var(--color-surface-3)] border border-[var(--color-border-strong)] hover:brightness-110 text-white py-3 px-4 rounded-[var(--radius-lg)] font-semibold text-xs transition duration-200 flex items-center justify-center gap-2"
+          >
+            <ArrowDownLeft className="w-4 h-4 text-[var(--color-yellow)]" /> DEPOSIT
+          </button>
+
+          <button
             onClick={onAirdropClick}
             disabled={isAirdropLoading}
-            className="flex-1 bg-[var(--color-surface-3)] border border-[var(--color-border-strong)] hover:brightness-110 text-white py-3 px-4 rounded-[var(--radius-lg)] font-semibold text-xs transition duration-200 flex items-center justify-center gap-2 disabled:opacity-50"
+            className="w-full sm:flex-1 bg-[var(--color-surface-3)] border border-[var(--color-border-strong)] hover:brightness-110 text-white py-3 px-4 rounded-[var(--radius-lg)] font-semibold text-xs transition duration-200 flex items-center justify-center gap-2 disabled:opacity-50"
           >
             {isAirdropLoading ? (
               <Loader2 className="w-4 h-4 animate-spin text-[var(--color-yellow)]" />
             ) : (
-              <ArrowDownLeft className="w-4 h-4 text-[var(--color-yellow)]" />
+              <Coins className="w-4 h-4 text-[var(--color-yellow)]" />
             )}
-            REQUEST AIRDROP
+            AIRDROP
           </button>
         </div>
       </div>

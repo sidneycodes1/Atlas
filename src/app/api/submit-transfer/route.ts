@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getConnection } from "@/lib/solana/connection";
+import { getConnection, getConnectionWithFallback } from "@/lib/solana/connection";
 import { buildTransferBundle, BundleParams } from "@/lib/jito/bundle";
 import { submitBundle } from "@/lib/jito/submit";
 import { simulateFailure, FailureType } from "@/lib/jito/failure-sim";
-import { Keypair, LAMPORTS_PER_SOL } from "@solana/web3.js";
+import { Connection, Keypair, LAMPORTS_PER_SOL, PublicKey } from "@solana/web3.js";
+import bs58pkg from "bs58";
+const bs58 = (bs58pkg as any).default || bs58pkg;
 
 function getAuthorityKeypair(): Keypair {
   const secretKeyString = process.env.JITO_AUTH_KEYPAIR;
@@ -15,7 +17,6 @@ function getAuthorityKeypair(): Keypair {
     return Keypair.fromSecretKey(new Uint8Array(arr));
   } catch (e) {
     try {
-      const bs58 = require("bs58");
       return Keypair.fromSecretKey(bs58.decode(secretKeyString));
     } catch (err) {
       return Keypair.generate();
@@ -33,11 +34,25 @@ export async function POST(req: NextRequest) {
       failureMode?: FailureType;
     };
 
-    if (!toAddress || !amountSol) {
+    const cleanToAddress = (toAddress || "").trim();
+
+    console.log('[SUBMIT] Received toAddress:', JSON.stringify(cleanToAddress));
+    console.log('[SUBMIT] toAddress length:', cleanToAddress?.length);
+
+    if (!cleanToAddress || !amountSol) {
       return NextResponse.json({ error: "Missing recipient address or amount" }, { status: 400 });
     }
 
-    const connection = getConnection();
+    try {
+      new PublicKey(cleanToAddress);
+    } catch (e: any) {
+      return NextResponse.json({ 
+        error: `Invalid recipient address: "${cleanToAddress}". Must be a valid base58 Solana address.` 
+      }, { status: 400 });
+    }
+
+    console.log('[RPC] Requesting connection with fallback...');
+    const connection = await getConnectionWithFallback();
     const authority = getAuthorityKeypair();
     const balance = await connection.getBalance(authority.publicKey);
 
@@ -54,7 +69,7 @@ export async function POST(req: NextRequest) {
 
     let params: BundleParams = {
       fromKeypair: authority,
-      toAddress,
+      toAddress: cleanToAddress,
       amountLamports,
       tipLamports,
       blockhash: latestBlockhash.blockhash,
@@ -80,7 +95,7 @@ export async function POST(req: NextRequest) {
       reason: result.reason,
       submittedAt: Date.now(),
       originalParams: {
-        toAddress,
+        toAddress: cleanToAddress,
         amountLamports,
         tipLamports,
         blockhash: latestBlockhash.blockhash,

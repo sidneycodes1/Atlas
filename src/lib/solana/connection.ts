@@ -22,3 +22,8 @@ export function getConnection(): Connection {
   console.log(`[Solana] Connected to RPC: ${rpcUrl}`);
   return connectionInstance;
 }
+
+export async function getConnectionWithFallback(): Promise<Connection> {
+  return new Connection('https://api.devnet.solana.com', 'confirmed');
+}
+

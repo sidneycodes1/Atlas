@@ -1,11 +1,12 @@
 "use client";
 
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { usePrivy, useWallets } from "@privy-io/react-auth";
 import { getConnection } from "@/lib/solana/connection";
 import { PublicKey, LAMPORTS_PER_SOL } from "@solana/web3.js";
-import { Cpu, LogOut, ArrowRight, ShieldAlert, LayoutDashboard } from "lucide-react";
+import { Cpu, LogOut, ArrowRight, ShieldAlert, LayoutDashboard, Copy, Check, X } from "lucide-react";
+import { QRCodeSVG } from "qrcode.react";
 
 import WalletDashboard, { DashboardTransaction } from "@/components/wallet/WalletDashboard";
 import { truncateAddress } from "@/lib/utils";
@@ -14,15 +15,17 @@ import { Step } from "@/components/atlas/LifecycleTracker";
 import { hasUserBeenFunded } from "@/lib/user-funding";
 
 export default function DashboardPage() {
-  const { authenticated, ready, logout, login } = usePrivy();
+  const { authenticated, ready, logout, login, user } = usePrivy();
   const { wallets } = useWallets();
   const router = useRouter();
 
-  // Find the embedded Solana wallet
-  const solWallet = wallets.find(
-    (w: any) => w.walletClientType === "privy" || !w.address.startsWith("0x")
+  const solanaWallet = user?.linkedAccounts?.find(
+    (account: any) => account.type === 'wallet' && account.chainType === 'solana'
+  ) || wallets.find(
+    (w: any) => w.walletClientType === 'privy' && w.chainType === 'solana'
   );
-  const address = solWallet ? solWallet.address : "";
+  const userAddress = (solanaWallet as any)?.address ?? '';
+  const address = userAddress;
 
   // Wallet states
   const [balance, setBalance] = useState(0);
@@ -32,13 +35,30 @@ export default function DashboardPage() {
   const [isTransferLoading, setIsTransferLoading] = useState(false);
   const [errorBanner, setErrorBanner] = useState<string | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [isSignOutModalOpen, setIsSignOutModalOpen] = useState(false);
+  const [isDepositModalOpen, setIsDepositModalOpen] = useState(false);
+
+  // Derive identity values
+  const userEmail = user?.email?.address;
+  const identityChar = userEmail ? userEmail.charAt(0).toUpperCase() : "W";
+  const identityText = userEmail 
+    ? `${userEmail.substring(0, 5)}...` 
+    : address 
+      ? `${address.substring(0, 5)}...` 
+      : "Not connected";
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
     const id = setTimeout(() => {
       setToastMessage((prev) => (prev === msg ? null : prev));
-    }, 7000);
+    }, 3000);
     return id;
+  };
+
+  const copyToClipboard = () => {
+    if (!address) return;
+    navigator.clipboard.writeText(address);
+    showToast("Copied!");
   };
 
   // Keyboard shortcut listener (Cmd+K or Ctrl+K to toggle portal)
@@ -71,17 +91,16 @@ export default function DashboardPage() {
   };
 
   // Fetch SOL balance
-  const fetchBalance = async () => {
+  const fetchBalance = useCallback(async () => {
     if (!address) return;
     try {
-      const connection = getConnection();
-      const pubkey = new PublicKey(address);
-      const lamports = await connection.getBalance(pubkey);
-      setBalance(lamports / LAMPORTS_PER_SOL);
+      const res = await fetch(`/api/get-balance?address=${address}`);
+      const data = await res.json();
+      setBalance(data.balance ?? 0);
     } catch (err) {
       console.error("Failed to fetch balance:", err);
     }
-  };
+  }, [address]);
 
   // Auth redirection removed - dashboard is accessible to all users
 
@@ -91,60 +110,31 @@ export default function DashboardPage() {
       const interval = setInterval(fetchBalance, 10000);
       return () => clearInterval(interval);
     }
-  }, [address]);
-
-  // Auto-airdrop on login
-  const prevAddressRef = useRef("");
+  }, [address, fetchBalance]);
 
   useEffect(() => {
-    if (ready && authenticated && address && address !== prevAddressRef.current) {
-      prevAddressRef.current = address;
+    if (!ready || !authenticated || !userAddress) return;
 
-      const autoFund = async () => {
-        if (!hasUserBeenFunded(address)) {
-          console.log(`[Auto-Onboard] Initiating login auto-funding for ${address}`);
-          try {
-            const res = await fetch("/api/onboard", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ walletAddress: address }),
-            });
-            const data = await res.json();
-            if (data.success) {
-              console.log("✓ Wallet funded with 0.5 SOL");
-              setBalance(0.5);
-              
-              // Add onboarding transaction to local history
-              const newTx: DashboardTransaction = {
-                signature: data.signature,
-                type: "Airdrop",
-                amount: 0.5,
-                status: "Finalized",
-                timestamp: Date.now(),
-              };
-              setTransactions((prev) => {
-                const updated = [newTx, ...prev];
-                localStorage.setItem(`atlas_txs_${address}`, JSON.stringify(updated));
-                return updated;
-              });
-            } else {
-              console.error("Funding failed:", data.error);
-              showToast("Devnet airdrop rate limited. Use faucet.solana.com");
-            }
-          } catch (err) {
-            console.error("Error calling onboard:", err);
-            showToast("Devnet airdrop rate limited. Use faucet.solana.com");
-          }
-        } else {
-          console.log("[Auto-Onboard] User already funded. Skipping onboarding.");
+    const alreadyFunded = localStorage.getItem(`atlas_funded_${userAddress}`);
+    if (alreadyFunded) return;
+
+    console.log('[ATLAS] Triggering onboard for:', userAddress);
+
+    fetch('/api/onboard', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ walletAddress: userAddress })
+    })
+      .then(r => r.json())
+      .then(d => {
+        console.log('[ATLAS] Onboard result:', d);
+        if (d.success) {
+          localStorage.setItem(`atlas_funded_${userAddress}`, 'true');
         }
-      };
+      })
+      .catch(e => console.error('[ATLAS] Onboard failed:', e));
 
-      autoFund();
-    } else if (!authenticated) {
-      prevAddressRef.current = "";
-    }
-  }, [ready, authenticated, address]);
+  }, [ready, authenticated, userAddress]);
 
   // Request 1 SOL devnet funding
   const handleAirdrop = async () => {
@@ -251,7 +241,7 @@ export default function DashboardPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          toAddress: data.toAddress,
+          toAddress: data.toAddress.trim(),
           amountSol: data.amountSol,
           atlasEnabled: data.atlasEnabled,
           failureMode: data.failureMode,
@@ -267,6 +257,7 @@ export default function DashboardPage() {
       const bundleId = submitData.bundleId;
 
       updateStep(0, "success", "Signed & Packaged.");
+      showToast("Transaction sent");
 
       // If simulated failure triggered
       if (data.failureMode && data.atlasEnabled) {
@@ -388,6 +379,7 @@ export default function DashboardPage() {
                       saveTransactions([newTx, ...transactions]);
                       await fetchBalance();
                       setIsTransferLoading(false);
+                      showToast("Transaction confirmed");
                     } else if (update.stage === "failed") {
                       eventSource.close();
                       updateStep(4, "failed", "Finalization failed.");
@@ -450,6 +442,7 @@ export default function DashboardPage() {
             saveTransactions([newTx, ...transactions]);
             await fetchBalance();
             setIsTransferLoading(false);
+            showToast("Transaction confirmed");
           } else if (update.stage === "failed") {
             eventSource.close();
             updateStep(2, "failed", "Transaction dropped.");
@@ -500,14 +493,24 @@ export default function DashboardPage() {
 
         {/* Navbar Info & Controls */}
         <div className="flex items-center gap-4">
-          <div className="hidden lg:flex flex-col text-right">
-            <span className="text-[9px] font-bold text-[var(--color-text-2)] font-mono tracking-wider">
-              OPERATOR WALLET
-            </span>
-            <span className="text-xs text-white font-mono font-medium">
-              {address ? truncateAddress(address) : "Not Connected"}
-            </span>
-          </div>
+          {/* Identity Card (Replaces OPERATOR WALLET) */}
+          {address && (
+            <div className="hidden lg:flex items-center bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-full pl-1.5 pr-3 py-1 gap-2 shadow-sm">
+              <div className="w-6 h-6 rounded-full bg-[var(--color-yellow)] text-black flex items-center justify-center font-bold text-[10px] uppercase font-sans">
+                {identityChar}
+              </div>
+              <span className="text-xs text-white font-mono font-medium tracking-tight">
+                {identityText}
+              </span>
+              <button 
+                onClick={copyToClipboard}
+                className="text-[var(--color-text-3)] hover:text-[var(--color-yellow)] transition-colors ml-1"
+                title="Copy full address"
+              >
+                <Copy className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          )}
 
           <button
             onClick={() => setIsPortalOpen(true)}
@@ -522,7 +525,7 @@ export default function DashboardPage() {
 
           {authenticated ? (
             <button
-              onClick={logout}
+              onClick={() => setIsSignOutModalOpen(true)}
               className="p-2 border border-[var(--color-border)] hover:bg-[var(--color-surface-2)] rounded-[var(--radius-lg)] text-[var(--color-text-2)] hover:text-white transition"
               title="Sign Out"
             >
@@ -563,6 +566,7 @@ export default function DashboardPage() {
             transactions={transactions}
             onSendClick={() => setIsPortalOpen(true)}
             onAirdropClick={handleAirdrop}
+            onDepositClick={() => setIsDepositModalOpen(true)}
             isAirdropLoading={isAirdropLoading}
           />
         </div>
@@ -580,8 +584,8 @@ export default function DashboardPage() {
 
       {/* Custom Floating Toast Notification */}
       {toastMessage && (
-        <div className="fixed bottom-6 right-6 z-50 p-4 bg-[var(--color-surface)] border border-[var(--color-border-strong)] rounded-[var(--radius-md)] shadow-xl text-xs font-mono text-white flex items-center gap-3 animate-fade-slide-in max-w-sm">
-          <div className="w-2 h-2 rounded-full bg-[var(--color-yellow)] animate-pulse" />
+        <div className="fixed top-6 right-6 z-50 p-4 bg-[var(--color-surface)] border border-[var(--color-border-strong)] rounded-[var(--radius-md)] shadow-xl text-xs font-mono text-white flex items-center gap-3 animate-fade-slide-in max-w-sm">
+          <Check className="w-4 h-4 text-[var(--color-yellow)]" />
           <div className="flex-1 font-medium">{toastMessage}</div>
           <button
             onClick={() => setToastMessage(null)}
@@ -589,6 +593,68 @@ export default function DashboardPage() {
           >
             ×
           </button>
+        </div>
+      )}
+
+      {/* Sign-Out Modal */}
+      {isSignOutModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-slide-in">
+          <div className="bg-[var(--color-surface)] border border-[var(--color-border-strong)] rounded-2xl p-6 w-full max-w-sm shadow-2xl relative">
+            <h2 className="text-xl font-bold text-white mb-2 tracking-tight">Sign Out</h2>
+            <p className="text-[var(--color-text-2)] text-sm mb-6">Are you sure you want to sign out?</p>
+            <div className="flex gap-3">
+              <button 
+                onClick={() => setIsSignOutModalOpen(false)}
+                className="flex-1 px-4 py-2.5 bg-[var(--color-surface-2)] hover:bg-[var(--color-surface-3)] text-white text-sm font-semibold rounded-lg transition"
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={() => {
+                  setIsSignOutModalOpen(false);
+                  logout();
+                }}
+                className="flex-1 px-4 py-2.5 bg-red-500/10 hover:bg-red-500/20 text-red-500 border border-red-500/50 text-sm font-semibold rounded-lg transition"
+              >
+                Sign Out
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Deposit Modal */}
+      {isDepositModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-slide-in">
+          <div className="bg-[var(--color-surface)] border border-[var(--color-border-strong)] rounded-2xl p-6 w-full max-w-sm shadow-2xl relative">
+            <button 
+              onClick={() => setIsDepositModalOpen(false)}
+              className="absolute top-4 right-4 text-[var(--color-text-3)] hover:text-white transition"
+            >
+              <X className="w-5 h-5" />
+            </button>
+            <h2 className="text-xl font-bold text-white mb-6 tracking-tight text-center">Deposit SOL</h2>
+            
+            <div className="flex flex-col items-center justify-center mb-6 p-4 bg-white rounded-xl mx-auto w-max">
+              <QRCodeSVG value={address || ""} size={160} />
+            </div>
+
+            <div className="mb-2 text-xs font-mono font-bold text-[var(--color-text-2)] uppercase tracking-wider text-center">
+              Your Wallet Address
+            </div>
+            
+            <div className="flex items-center gap-2 bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-lg p-3">
+              <div className="flex-1 font-mono text-xs text-white truncate text-center">
+                {address}
+              </div>
+              <button 
+                onClick={copyToClipboard}
+                className="p-2 bg-[var(--color-surface-3)] hover:bg-[var(--color-border-strong)] rounded-md text-[var(--color-yellow)] transition"
+              >
+                <Copy className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </main>

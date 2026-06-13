@@ -1,6 +1,8 @@
-import { getConnection } from "../solana/connection";
+import { getConnectionWithFallback } from "../solana/connection";
 import { Transaction } from "@solana/web3.js";
 import { BundleParams } from "./bundle";
+import bs58pkg from "bs58";
+const bs58 = (bs58pkg as any).default || bs58pkg;
 
 export interface BundleResult {
   bundleId: string;
@@ -21,11 +23,11 @@ export async function submitBundle(
   }
 ): Promise<BundleResult> {
   const { transactions, params } = bundle;
-  const connection = getConnection();
+  const connection = await getConnectionWithFallback();
 
   const mainTx = transactions[0];
   const signature = mainTx.signatures[0]
-    ? require("bs58").encode(mainTx.signatures[0].signature)
+    ? bs58.encode(mainTx.signatures[0].signature)
     : "simulated_sig_" + Math.random().toString(36).substring(2, 15);
 
   const bundleId = "jito_bundle_" + Math.random().toString(36).substring(2, 15);

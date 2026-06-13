@@ -2,6 +2,8 @@ import { NextRequest } from "next/server";
 import { analyzeFailure, FailureContext } from "@/lib/ai/recovery-engine";
 import { executeRecovery } from "@/lib/ai/executor";
 import { Keypair } from "@solana/web3.js";
+import bs58pkg from "bs58";
+const bs58 = (bs58pkg as any).default || bs58pkg;
 
 export const dynamic = "force-dynamic";
 
@@ -15,7 +17,6 @@ function getAuthorityKeypair(): Keypair {
     return Keypair.fromSecretKey(new Uint8Array(arr));
   } catch (e) {
     try {
-      const bs58 = require("bs58");
       return Keypair.fromSecretKey(bs58.decode(secretKeyString));
     } catch (err) {
       return Keypair.generate();

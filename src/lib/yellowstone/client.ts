@@ -1,4 +1,4 @@
-import { getConnection } from "../solana/connection";
+import { getConnection, getConnectionWithFallback } from "../solana/connection";
 import { Connection, SignatureResult } from "@solana/web3.js";
 
 export interface TransactionUpdate {
@@ -22,8 +22,10 @@ export async function* subscribeToTransaction(
   const startTime = Date.now();
   console.log(`[Geyser Client] Subscribing to signature: ${signature} (Simulated: ${isSimulated})`);
 
-  if (isSimulated && simulationMode) {
-    // Generate simulated lifecycle events for demo
+  if (isSimulated) {
+    console.log('[Geyser Client] Simulated mode — skipping WebSocket entirely');
+    const mode = simulationMode || "success";
+    
     yield {
       stage: "processed",
       slot: 28394012,
@@ -32,13 +34,13 @@ export async function* subscribeToTransaction(
     };
     await new Promise((resolve) => setTimeout(resolve, 800));
 
-    if (simulationMode === "low_tip" || simulationMode === "expired_blockhash" || simulationMode === "leader_miss" || simulationMode === "congestion") {
+    if (mode === "low_tip" || mode === "expired_blockhash" || mode === "leader_miss" || mode === "congestion") {
       yield {
         stage: "failed",
         slot: 28394015,
         timestamp: Date.now(),
         latency: Date.now() - startTime,
-        error: `Simulation Error: ${simulationMode.toUpperCase()}`,
+        error: `Simulation Error: ${mode.toUpperCase()}`,
       };
       return;
     }
@@ -61,7 +63,7 @@ export async function* subscribeToTransaction(
   }
 
   // Real Web3.js Connection subscription
-  const connection = getConnection();
+  const connection = await getConnectionWithFallback();
   let resolved = false;
   const queue: TransactionUpdate[] = [];
   let resolveNext: ((value: any) => void) | null = null;
