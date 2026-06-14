@@ -14,6 +14,7 @@ interface TransactionPortalProps {
     amountSol: number;
     atlasEnabled: boolean;
     failureMode?: string;
+    asset?: "SOL" | "USDC";
   }) => Promise<void>;
   isLoading: boolean;
   steps: Step[];
@@ -41,16 +42,27 @@ export default function TransactionPortal({
   const [toAddress, setToAddress] = useState("");
   const [amountSol, setAmountSol] = useState("");
   const [atlasEnabled, setAtlasEnabled] = useState(true);
+  const [asset, setAsset] = useState<"SOL" | "USDC">("SOL");
+  const [simulateFailure, setSimulateFailure] = useState(false);
+  const [failureModeIndex, setFailureModeIndex] = useState(0);
+  const FAILURE_MODES = ["low_tip", "expired_blockhash", "leader_miss", "congestion"];
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!toAddress || !amountSol) return;
 
+    let selectedFailureMode = undefined;
+    if (simulateFailure) {
+      selectedFailureMode = FAILURE_MODES[failureModeIndex % FAILURE_MODES.length];
+      setFailureModeIndex(prev => prev + 1);
+    }
+
     onSubmit({
       toAddress,
       amountSol: parseFloat(amountSol),
       atlasEnabled,
-      ...(amountSol === "0.001" ? { failureMode: "low_tip" } : {})
+      asset,
+      ...(selectedFailureMode ? { failureMode: selectedFailureMode } : {})
     });
   };
 
@@ -98,10 +110,26 @@ export default function TransactionPortal({
             />
           </div>
 
+          {/* Asset Dropdown */}
+          <div className="flex flex-col gap-1.5">
+            <label className="text-[10px] font-bold text-[var(--color-text-2)] uppercase font-mono tracking-wider">
+              Asset
+            </label>
+            <select
+              value={asset}
+              onChange={(e) => setAsset(e.target.value as "SOL" | "USDC")}
+              disabled={isLoading}
+              className="bg-[var(--color-surface-2)] border border-[var(--color-border-strong)] rounded-[var(--radius-md)] px-3 py-2 text-xs text-white font-mono focus:outline-none focus:border-[var(--color-yellow)] transition appearance-none"
+            >
+              <option value="SOL">SOL</option>
+              <option value="USDC">ATLAS-USD</option>
+            </select>
+          </div>
+
           {/* Amount Input */}
           <div className="flex flex-col gap-1.5">
             <label className="text-[10px] font-bold text-[var(--color-text-2)] uppercase font-mono tracking-wider">
-              Amount (SOL)
+              Amount ({asset === "USDC" ? "ATLAS-USD" : "SOL"})
             </label>
             <input
               type="number"
@@ -127,6 +155,24 @@ export default function TransactionPortal({
                 type="checkbox"
                 checked={atlasEnabled}
                 onChange={(e) => setAtlasEnabled(e.target.checked)}
+                disabled={isLoading}
+                className="sr-only peer"
+              />
+              <div className="w-9 h-5 bg-[var(--color-surface-3)] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[var(--color-yellow)]"></div>
+            </label>
+          </div>
+
+          {/* Toggle 2: Simulate Failure */}
+          <div className="flex items-center justify-between p-3 bg-[var(--color-surface-2)]/40 border border-[var(--color-border)] rounded-[var(--radius-md)]">
+            <div className="flex flex-col gap-0.5">
+              <span className="text-xs font-mono font-bold text-white">Simulate Failure (Testing)</span>
+              <span className="text-[10px] text-[var(--color-text-3)]">Forces a transaction failure to test recovery.</span>
+            </div>
+            <label className="relative inline-flex items-center cursor-pointer">
+              <input
+                type="checkbox"
+                checked={simulateFailure}
+                onChange={(e) => setSimulateFailure(e.target.checked)}
                 disabled={isLoading}
                 className="sr-only peer"
               />

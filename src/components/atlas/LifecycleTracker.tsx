@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils";
 
 export interface Step {
   label: string;
-  status: "idle" | "pending" | "success" | "failed";
+  status: "idle" | "pending" | "success" | "failed" | "skipped";
   statusText?: string;
 }
 
@@ -28,6 +28,7 @@ export default function LifecycleTracker({ steps, className }: LifecycleTrackerP
           const isSuccess = step.status === "success";
           const isFailed = step.status === "failed";
           const isIdle = step.status === "idle";
+          const isSkipped = step.status === "skipped";
 
           return (
             <div key={index} className="flex gap-4 relative pb-6 last:pb-0 group animate-fade-slide-in">
@@ -52,6 +53,9 @@ export default function LifecycleTracker({ steps, className }: LifecycleTrackerP
                 {isIdle && (
                   <div className="w-3.5 h-3.5 rounded-full border-2 border-[var(--color-surface-3)] bg-transparent" />
                 )}
+                {isSkipped && (
+                  <div className="w-3.5 h-3.5 rounded-full border border-[var(--color-text-3)] border-dashed bg-transparent" />
+                )}
               </div>
 
               {/* Step Content */}
@@ -62,7 +66,8 @@ export default function LifecycleTracker({ steps, className }: LifecycleTrackerP
                     isSuccess && "text-white",
                     isPending && "text-[var(--color-yellow)]",
                     isFailed && "text-[var(--color-danger)]",
-                    isIdle && "text-[var(--color-text-3)]"
+                    isIdle && "text-[var(--color-text-3)]",
+                    isSkipped && "text-[var(--color-text-3)] italic"
                   )}
                 >
                   {step.label}
@@ -74,7 +79,8 @@ export default function LifecycleTracker({ steps, className }: LifecycleTrackerP
                       isSuccess && "text-[var(--color-success)]",
                       isPending && "text-[var(--color-text-2)]",
                       isFailed && "text-[var(--color-danger)] font-medium",
-                      isIdle && "text-[var(--color-text-3)]"
+                      isIdle && "text-[var(--color-text-3)]",
+                      isSkipped && "text-[var(--color-text-3)]"
                     )}
                   >
                     {step.statusText}

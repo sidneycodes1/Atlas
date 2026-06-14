@@ -94,7 +94,7 @@ export default function DashboardPage() {
   const fetchBalance = useCallback(async () => {
     if (!address) return;
     try {
-      const res = await fetch(`/api/get-balance?address=${address}`);
+      const res = await fetch(`/api/get-balance?address=${address}&t=${Date.now()}`, { cache: 'no-store' });
       const data = await res.json();
       setBalance(data.balance ?? 0);
     } catch (err) {
@@ -130,23 +130,29 @@ export default function DashboardPage() {
         console.log('[ATLAS] Onboard result:', d);
         if (d.success) {
           localStorage.setItem(`atlas_funded_${userAddress}`, 'true');
+          fetchBalance();
         }
       })
       .catch(e => console.error('[ATLAS] Onboard failed:', e));
 
   }, [ready, authenticated, userAddress]);
 
-  // Request 1 SOL devnet funding
+  // Request Devnet funding via onboard route
   const handleAirdrop = async () => {
     if (!address) return;
+    if (balance > 0.1) {
+      showToast("Balance sufficient — airdrop only available below 0.1 SOL");
+      return;
+    }
+    
     setIsAirdropLoading(true);
     setErrorBanner(null);
 
     try {
-      const res = await fetch("/api/fund-wallet", {
+      const res = await fetch("/api/onboard", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ walletAddress: address }),
+        body: JSON.stringify({ walletAddress: address, force: true }),
       });
       const data = await res.json();
 
@@ -155,19 +161,20 @@ export default function DashboardPage() {
       }
 
       await fetchBalance();
+      showToast("0.5 SOL added!");
       
       // Add airdrop transaction to local history
       const newTx: DashboardTransaction = {
         signature: data.signature,
         type: "Airdrop",
-        amount: 1,
+        amount: 0.5,
         status: "Finalized",
         timestamp: Date.now(),
       };
       saveTransactions([newTx, ...transactions]);
     } catch (err: any) {
       console.error(err);
-      showError(err.message || "Devnet faucet rate limited. Try again shortly.");
+      showError(err.message || "Airdrop failed. Try again shortly.");
     } finally {
       setIsAirdropLoading(false);
     }
@@ -222,16 +229,26 @@ export default function DashboardPage() {
     setRecoveryState({ isActive: false, phase: "idle" });
   };
 
-  // Submit transfer form handler
   const handleTransferSubmit = async (data: {
     toAddress: string;
     amountSol: number;
     atlasEnabled: boolean;
     failureMode?: string;
+    asset?: "SOL" | "USDC";
   }) => {
     setIsTransferLoading(true);
     resetSteps();
     setErrorBanner(null);
+
+    const refreshBalance = () => {
+      fetch(`/api/get-balance?address=${address}&t=${Date.now()}`, { cache: 'no-store' })
+        .then(r => r.json())
+        .then(d => setBalance(d.balance ?? 0));
+    };
+    
+    const refreshBalanceDelayed = () => {
+      setTimeout(refreshBalance, 2000);
+    };
 
     // Step 1: Initiating
     updateStep(0, "pending", "Building Jito Transfer Bundle...");
@@ -245,6 +262,7 @@ export default function DashboardPage() {
           amountSol: data.amountSol,
           atlasEnabled: data.atlasEnabled,
           failureMode: data.failureMode,
+          asset: data.asset,
         }),
       });
 
@@ -377,17 +395,20 @@ export default function DashboardPage() {
                         },
                       };
                       saveTransactions([newTx, ...transactions]);
-                      await fetchBalance();
+                      refreshBalance();
+                      refreshBalanceDelayed();
                       setIsTransferLoading(false);
                       showToast("Transaction confirmed");
                     } else if (update.stage === "failed") {
                       eventSource.close();
                       updateStep(4, "failed", "Finalization failed.");
+                      refreshBalanceDelayed();
                       setIsTransferLoading(false);
                     }
                   };
                 } else {
                   updateStep(3, "failed", "Healing Resubmission Rejected.");
+                  refreshBalanceDelayed();
                   setIsTransferLoading(false);
                 }
               }
@@ -400,6 +421,7 @@ export default function DashboardPage() {
         await new Promise((resolve) => setTimeout(resolve, 1000));
         updateStep(1, "success", "Decoded.");
         updateStep(2, "failed", `REJECTED: ${submitData.reason || "Insufficient tip"}`);
+        updateStep(3, "failed", "No autonomous recovery agent active. Transfer dropped.");
         
         const newTx: DashboardTransaction = {
           signature,
@@ -409,6 +431,7 @@ export default function DashboardPage() {
           timestamp: Date.now(),
         };
         saveTransactions([newTx, ...transactions]);
+        refreshBalanceDelayed();
         setIsTransferLoading(false);
       } else {
         // Real or normal successful transaction
@@ -427,6 +450,7 @@ export default function DashboardPage() {
             updateStep(2, "pending", "Confirming block consensus...");
           } else if (update.stage === "confirmed") {
             updateStep(2, "success", "1 Confirmation.");
+            updateStep(3, "skipped", "Not needed — no failure detected.");
             updateStep(4, "pending", "Finalizing slot...");
           } else if (update.stage === "finalized") {
             eventSource.close();
@@ -440,7 +464,8 @@ export default function DashboardPage() {
               timestamp: Date.now(),
             };
             saveTransactions([newTx, ...transactions]);
-            await fetchBalance();
+            refreshBalance();
+            refreshBalanceDelayed();
             setIsTransferLoading(false);
             showToast("Transaction confirmed");
           } else if (update.stage === "failed") {
@@ -455,6 +480,7 @@ export default function DashboardPage() {
               timestamp: Date.now(),
             };
             saveTransactions([newTx, ...transactions]);
+            refreshBalanceDelayed();
             setIsTransferLoading(false);
           }
         };
@@ -462,6 +488,7 @@ export default function DashboardPage() {
     } catch (err: any) {
       console.error(err);
       showError(err.message || "Failed to execute transfer.");
+      refreshBalanceDelayed();
       setIsTransferLoading(false);
     }
   };

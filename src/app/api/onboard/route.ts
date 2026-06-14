@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { Connection, Keypair, PublicKey, SystemProgram, Transaction, LAMPORTS_PER_SOL } from '@solana/web3.js';
-import { markUserAsFunded } from '@/lib/user-funding';
+import { markUserAsFunded, hasUserBeenFunded } from '@/lib/user-funding';
 import { getConnectionWithFallback } from '@/lib/solana/connection';
 
 export async function POST(request: Request) {
@@ -8,10 +8,14 @@ export async function POST(request: Request) {
     const body = await request.json();
     console.log('[ONBOARD] Hit with address:', body.walletAddress);
 
-    const { walletAddress } = body;
+    const { walletAddress, force } = body;
     
     if (!walletAddress) {
       return NextResponse.json({ error: 'Missing walletAddress' }, { status: 400 });
+    }
+
+    if (!force && hasUserBeenFunded(walletAddress)) {
+      return NextResponse.json({ success: false, error: "Already funded. Use the AIRDROP button if balance is low." });
     }
 
     console.log('[Onboard API] Funding wallet:', walletAddress);

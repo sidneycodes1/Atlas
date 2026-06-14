@@ -4,6 +4,7 @@ import { buildTransferBundle, BundleParams } from "@/lib/jito/bundle";
 import { submitBundle } from "@/lib/jito/submit";
 import { simulateFailure, FailureType } from "@/lib/jito/failure-sim";
 import { Connection, Keypair, LAMPORTS_PER_SOL, PublicKey } from "@solana/web3.js";
+import { getAssociatedTokenAddress, getAccount } from "@solana/spl-token";
 import bs58pkg from "bs58";
 const bs58 = (bs58pkg as any).default || bs58pkg;
 
@@ -27,15 +28,12 @@ function getAuthorityKeypair(): Keypair {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { toAddress, amountSol, atlasEnabled, failureMode } = body as {
-      toAddress: string;
-      amountSol: number;
-      atlasEnabled: boolean;
-      failureMode?: FailureType;
-    };
+    const { toAddress, amountSol, atlasEnabled, failureMode, asset, tokenMint, tokenAmount } = body as any;
 
     const cleanToAddress = (toAddress || "").trim();
 
+    console.log('[SUBMIT] Full body:', JSON.stringify(body));
+    console.log('[SUBMIT] asset:', asset, '| tokenMint:', tokenMint, '| tokenAmount:', tokenAmount);
     console.log('[SUBMIT] Received toAddress:', JSON.stringify(cleanToAddress));
     console.log('[SUBMIT] toAddress length:', cleanToAddress?.length);
 
@@ -54,15 +52,47 @@ export async function POST(req: NextRequest) {
     console.log('[RPC] Requesting connection with fallback...');
     const connection = await getConnectionWithFallback();
     const authority = getAuthorityKeypair();
-    const balance = await connection.getBalance(authority.publicKey);
+    const solBalance = await connection.getBalance(authority.publicKey);
 
-    const amountLamports = Math.floor(amountSol * LAMPORTS_PER_SOL);
     const tipLamports = 5000; // default standard Jito tip
+    let amountLamports = 0;
+    let finalTokenMint: string | undefined = tokenMint;
+    let finalTokenAmount: number | undefined = tokenAmount;
+    let tokenDecimals: number | undefined;
 
-    if (balance < amountLamports + tipLamports) {
-      return NextResponse.json({
-        error: `Insufficient authority balance on Devnet. Authority Address: ${authority.publicKey.toBase58()}. Balance: ${(balance / LAMPORTS_PER_SOL).toFixed(4)} SOL. Required: ${(amountSol + tipLamports / LAMPORTS_PER_SOL).toFixed(4)} SOL.`
-      }, { status: 400 });
+    if (asset === "USDC") {
+      finalTokenMint = "DDSuJfCdWfDtTC4bf1B1kkZqQ1rmrFq5ZpbhwqjzmUZY";
+      tokenDecimals = 6;
+      finalTokenAmount = amountSol * Math.pow(10, tokenDecimals);
+      
+      try {
+        const senderAta = await getAssociatedTokenAddress(new PublicKey(finalTokenMint), authority.publicKey);
+        const publicConnection = new Connection("https://api.devnet.solana.com", "confirmed");
+        const senderAccount = await getAccount(publicConnection, senderAta);
+        const usdcBalance = Number(senderAccount.amount);
+        if (usdcBalance < tokenAmount) {
+          return NextResponse.json({
+            error: `Insufficient authority ATLAS-USD balance. Authority Address: ${authority.publicKey.toBase58()}. Balance: ${(usdcBalance / Math.pow(10, tokenDecimals)).toFixed(4)} ATLAS-USD. Required: ${amountSol} ATLAS-USD.`
+          }, { status: 400 });
+        }
+      } catch (e: any) {
+        return NextResponse.json({
+          error: `Failed to fetch ATLAS-USD balance for authority. Does it have an ATA? ${e.message}`
+        }, { status: 400 });
+      }
+
+      if (solBalance < tipLamports) {
+        return NextResponse.json({
+          error: `Insufficient SOL balance for tip. Required: ${tipLamports / LAMPORTS_PER_SOL} SOL.`
+        }, { status: 400 });
+      }
+    } else {
+      amountLamports = Math.floor(amountSol * LAMPORTS_PER_SOL);
+      if (solBalance < amountLamports + tipLamports) {
+        return NextResponse.json({
+          error: `Insufficient authority balance on Devnet. Authority Address: ${authority.publicKey.toBase58()}. Balance: ${(solBalance / LAMPORTS_PER_SOL).toFixed(4)} SOL. Required: ${(amountSol + tipLamports / LAMPORTS_PER_SOL).toFixed(4)} SOL.`
+        }, { status: 400 });
+      }
     }
 
     const latestBlockhash = await connection.getLatestBlockhash("confirmed");
@@ -74,6 +104,9 @@ export async function POST(req: NextRequest) {
       tipLamports,
       blockhash: latestBlockhash.blockhash,
       isSimulated: false,
+      tokenMint: finalTokenMint,
+      tokenAmount: finalTokenAmount,
+      tokenDecimals,
     };
 
     // Apply failure simulation if specified
@@ -99,6 +132,9 @@ export async function POST(req: NextRequest) {
         amountLamports,
         tipLamports,
         blockhash: latestBlockhash.blockhash,
+        asset,
+        tokenMint: finalTokenMint,
+        tokenAmount: finalTokenAmount
       },
     });
   } catch (err: any) {

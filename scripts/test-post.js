@@ -1,36 +1,32 @@
-const http = require('http');
-
-const payload = JSON.stringify({
-  toAddress: 'BmWDEaSQPKCCwGGwxuZiVB8Ld1LEHJMYoRWWovgP1KT6', // transfer from JITO_AUTH to ATLAS_TREASURY
-  amountSol: 0.1,
-  atlasEnabled: false
-});
-
-const options = {
-  hostname: 'localhost',
-  port: 3000,
-  path: '/api/submit-transfer',
-  method: 'POST',
-  headers: {
-    'Content-Type': 'application/json',
-    'Content-Length': payload.length
+async function test() {
+  for (let i = 1; i <= 3; i++) {
+    console.log(`\n--- SOL Attempt ${i} ---`);
+    const res = await fetch('http://localhost:3000/api/submit-transfer', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        toAddress: "BmWDEaSQPKCCwGGwxuZiVB8Ld1LEHJMYoRWWovgP1KT6",
+        amountSol: 0.001,
+        atlasEnabled: false,
+        asset: "SOL"
+      })
+    });
+    const data = await res.json();
+    console.log(data);
   }
-};
 
-const req = http.request(options, (res) => {
-  let data = '';
-  res.on('data', (chunk) => {
-    data += chunk;
+  console.log(`\n--- USDC Attempt 1 ---`);
+  const res = await fetch('http://localhost:3000/api/submit-transfer', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      toAddress: "BmWDEaSQPKCCwGGwxuZiVB8Ld1LEHJMYoRWWovgP1KT6",
+      amountSol: 0.001,
+      atlasEnabled: false,
+      asset: "USDC"
+    })
   });
-  res.on('end', () => {
-    console.log('Status Code:', res.statusCode);
-    console.log('Response:', data);
-  });
-});
-
-req.on('error', (error) => {
-  console.error('Error:', error);
-});
-
-req.write(payload);
-req.end();
+  const data = await res.json();
+  console.log(data);
+}
+test();
