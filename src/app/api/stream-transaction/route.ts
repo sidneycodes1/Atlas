@@ -3,6 +3,7 @@ import { subscribeToTransaction } from "@/lib/yellowstone/client";
 import { getConnectionWithFallback } from "@/lib/solana/connection";
 
 export const dynamic = "force-dynamic";
+export const runtime = "edge";
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);

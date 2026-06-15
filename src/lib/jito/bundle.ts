@@ -56,7 +56,7 @@ export async function buildTransferBundle(params: BundleParams): Promise<{
     let mintPubkey: PublicKey;
     let toPubkey: PublicKey;
     try {
-      mintPubkey = new PublicKey(tokenMint);
+      mintPubkey = new PublicKey(tokenMint!);
     } catch (e) {
       console.error('[BUNDLE] Failed to create PublicKey from:', JSON.stringify(tokenMint), 'variable: tokenMint');
       throw e;
@@ -99,7 +99,7 @@ export async function buildTransferBundle(params: BundleParams): Promise<{
         senderAta, // source
         recipientAta, // destination
         fromKeypair.publicKey, // owner
-        tokenAmount // amount
+        tokenAmount || 0 // amount
       )
     );
   } else {
