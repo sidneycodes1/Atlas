@@ -76,10 +76,21 @@ export default function DashboardPage() {
   // Sync state with localStorage for demo history persistence
   useEffect(() => {
     if (address) {
+      // Load from local storage as fallback/cache first
       const cached = localStorage.getItem(`atlas_txs_${address}`);
       if (cached) {
         setTransactions(JSON.parse(cached));
       }
+      // Then fetch from KV
+      fetch(`/api/transactions?address=${address}`)
+        .then(r => r.json())
+        .then(d => {
+          if (d.transactions && d.transactions.length > 0) {
+            setTransactions(d.transactions);
+            localStorage.setItem(`atlas_txs_${address}`, JSON.stringify(d.transactions));
+          }
+        })
+        .catch(err => console.error("Failed to fetch transactions from KV", err));
     }
   }, [address]);
 
@@ -87,6 +98,14 @@ export default function DashboardPage() {
     setTransactions(txs);
     if (address) {
       localStorage.setItem(`atlas_txs_${address}`, JSON.stringify(txs));
+      // POST the new transaction to KV (assuming the newest is at index 0)
+      if (txs.length > 0) {
+        fetch('/api/transactions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ address: address, transaction: txs[0] })
+        }).catch(err => console.error("Failed to save transaction to KV", err));
+      }
     }
   };
 
