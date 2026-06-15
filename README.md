@@ -1,4 +1,4 @@
-# ⚡ Atlas — Autonomous Solana Transaction Recovery
+#  Atlas — Autonomous Solana Transaction Recovery
 
 > **Intelligent transaction recovery with real-time streaming, dynamic Jito tips, and AI-powered failure analysis.**
 > Built for the Superteam Nigeria Advanced Infrastructure Challenge.
@@ -14,7 +14,7 @@
 
 ---
 
-## 🧠 What is Atlas?
+##  What is Atlas?
 
 Atlas is a full-stack autonomous platform that detects when Solana transactions fail — and recovers them automatically, without any user intervention.
 
@@ -24,23 +24,23 @@ No "retry" button. No faucet. No manual intervention. Just watch it work.
 
 ---
 
-## ✨ Key Features
+##  Key Features
 
 | Feature | Description |
 |---|---|
-| 🔴 **Real-time Streaming** | Yellowstone gRPC connection with automatic fallback to RPC polling on permission errors |
-| 🎯 **Dynamic Jito Tips** | Live tip floor from Jito's API — uses 50th percentile for initial submission, escalates to 75th on recovery |
-| 🤖 **AI Failure Analysis** | Gemini AI classifies failure modes with structured reasoning; rule-based fallback on API unavailability |
-| 📦 **MEV-Protected Bundles** | All transactions submitted as Jito bundles for atomic, front-running-resistant execution |
-| 🔐 **Embedded Wallets** | Privy-powered embedded wallet creation — users go from login to funded wallet in seconds |
-| 💸 **Auto-Funding** | Treasury wallet (`BmWDE...`) automatically airdrops 0.5 SOL to new embedded wallets on first login |
-| 📊 **Full Lifecycle Tracking** | Every transaction tracked from submission → processed → confirmed → finalized with timestamps |
-| 🔄 **Smart Reconnection** | Exponential backoff on transient gRPC errors (max 3 attempts); permanent fallback on auth errors |
-| 📁 **Zero-Infra Persistence** | File-based KV store for local demo — no external database required |
+|  **Real-time Streaming** | Yellowstone gRPC connection with automatic fallback to RPC polling on permission errors |
+|  **Dynamic Jito Tips** | Live tip floor from Jito's API — uses 50th percentile for initial submission, escalates to 75th on recovery |
+|  **AI Failure Analysis** | Gemini AI classifies failure modes with structured reasoning; rule-based fallback on API unavailability |
+|  **MEV-Protected Bundles** | All transactions submitted as Jito bundles for atomic, front-running-resistant execution |
+|  **Embedded Wallets** | Privy-powered embedded wallet creation — users go from login to funded wallet in seconds |
+|  **Auto-Funding** | Treasury wallet (`BmWDE...`) automatically airdrops 0.5 SOL to new embedded wallets on first login |
+|  **Full Lifecycle Tracking** | Every transaction tracked from submission → processed → confirmed → finalized with timestamps |
+|  **Smart Reconnection** | Exponential backoff on transient gRPC errors (max 3 attempts); permanent fallback on auth errors |
+|  **Zero-Infra Persistence** | File-based KV store for local demo — no external database required |
 
 ---
 
-## 🏗️ Architecture Overview
+##  Architecture Overview
 
 ```
 User Login (Privy)
@@ -73,7 +73,7 @@ For the full architecture with Mermaid diagrams, component breakdown, and failur
 
 ---
 
-## 🚀 Quick Start
+##  Quick Start
 
 ```bash
 # Clone the repo
@@ -95,7 +95,7 @@ Open [http://localhost:3000](http://localhost:3000), log in with Privy, and Atla
 
 ---
 
-## 📋 Requirements
+##  Requirements
 
 - Node.js 18+
 - A Privy account ([dashboard.privy.io](https://dashboard.privy.io))
@@ -105,7 +105,7 @@ Open [http://localhost:3000](http://localhost:3000), log in with Privy, and Atla
 
 ---
 
-## ⚙️ Configuration
+##  Configuration
 
 Create a `.env.local` file with the following:
 
@@ -129,17 +129,17 @@ GEMINI_API_KEY=your_gemini_api_key
 JITO_TIP_ACCOUNT=96gYZGLnJYVFmbjzopPSU6QiEV5fGqZNyN9nmNhvrZU5  # devnet
 ```
 
-> 💡 **Tip:** If you don't have a gRPC plan, Atlas will automatically detect the `PERMISSION_DENIED` error and fall back to RPC polling. No config change needed — it's handled transparently.
+>  **Tip:** If you don't have a gRPC plan, Atlas will automatically detect the `PERMISSION_DENIED` error and fall back to RPC polling. No config change needed — it's handled transparently.
 
 ---
 
-## 🔬 How It Works
+##  How It Works
 
-### 1. 🔐 User Onboarding
+### 1.  User Onboarding
 
 When a user logs in via Privy, the `/api/onboard` endpoint checks if they've been funded before (tracked via local KV store). If not, the treasury wallet transfers 0.5 SOL to their embedded wallet. This eliminates the faucet step entirely — judges and evaluators can start testing immediately.
 
-### 2. 📡 Chain Streaming
+### 2.  Chain Streaming
 
 Atlas attempts to connect to the Yellowstone gRPC stream on startup:
 
@@ -155,7 +155,7 @@ Atlas attempts to connect to the Yellowstone gRPC stream on startup:
 
 This is real behavior from our runs. Code 7 (`PERMISSION_DENIED`) is treated as a **permanent, non-retriable error** — we don't burn retries on an auth failure. We log it, clean it up, and switch to polling. Transient errors (network flaps, timeouts) trigger exponential backoff up to 3 attempts before falling back.
 
-### 3. 💰 Dynamic Tip Calculation
+### 3.  Dynamic Tip Calculation
 
 Before every submission, Atlas hits the [Jito tip floor API](https://bundles.jito.wtf/api/v1/bundles/tip_floor) and pulls live percentile data:
 
@@ -164,7 +164,7 @@ Before every submission, Atlas hits the [Jito tip floor API](https://bundles.jit
 
 This is non-hardcoded. Every run uses current market rates.
 
-### 4. 🤖 AI Failure Analysis
+### 4.  AI Failure Analysis
 
 When a transaction fails, Atlas sends context to Gemini AI:
 
@@ -175,7 +175,7 @@ When a transaction fails, Atlas sends context to Gemini AI:
 
 Gemini responds with a structured failure classification and recovery recommendation. If Gemini is unavailable (404, quota, etc.), a rule-based fallback planner kicks in — same output structure, deterministic logic. The fallback isn't a degraded experience; it's a deliberate design decision.
 
-### 5. 📦 Jito Bundle Construction
+### 5.  Jito Bundle Construction
 
 Recovery transactions are submitted as Jito bundles:
 
@@ -184,7 +184,7 @@ Recovery transactions are submitted as Jito bundles:
 - Tip account: one of Jito's 8 devnet tip accounts receives the tip
 - Bundle ID tracked through Jito's bundle status API
 
-### 6. 📊 Lifecycle Tracking
+### 6.  Lifecycle Tracking
 
 Every transaction moves through states:
 
@@ -196,7 +196,7 @@ Timestamps are captured at each transition, enabling delta analysis (see Q1 belo
 
 ---
 
-## 🤖 AI Agent in Action
+##  AI Agent in Action
 
 Atlas uses Gemini AI as its failure reasoning engine. Here's what that looks like in practice:
 
@@ -243,7 +243,7 @@ The output format is identical — downstream components don't need to know whet
 
 ---
 
-## 📜 Lifecycle Logs — Real Runs
+##  Lifecycle Logs — Real Runs
 
 These are actual submission logs from our devnet testing. Every run used live Jito tip floor data.
 
@@ -288,7 +288,7 @@ status:         SUCCESS
 
 ---
 
-## 🔍 Key Observations & Lessons
+##  Key Observations & Lessons
 
 These are the most important things we learned actually running this system. They shaped design decisions, not just documentation.
 
@@ -314,7 +314,7 @@ Replacing `@vercel/kv` with file-based storage made the project self-contained a
 
 ---
 
-## ❓ Answers to Bounty Questions
+##  Answers to Bounty Questions
 
 ### Q1: What does the delta between `processed_at` and `confirmed_at` tell you about network health?
 
@@ -367,7 +367,7 @@ A good mental model: Jito bundles are atomic within a block, but getting into a 
 
 ---
 
-## 🛠️ Setup & Running in Detail
+##  Setup & Running in Detail
 
 ### Installation
 
@@ -453,7 +453,6 @@ atlas/
 │       ├── TransactionDashboard.tsx
 │       ├── LifecycleTracker.tsx
 │       └── RecoveryPanel.tsx
-├── ARCHITECTURE.md               # Full architecture doc with diagrams
 ├── README.md                     # This file
 ├── .env.example
 └── package.json
@@ -461,7 +460,7 @@ atlas/
 
 ---
 
-## 🔮 Future Improvements
+##  Future Improvements
 
 - **Mainnet mode:** Switch tip accounts and RPC to mainnet; add configurable tip multipliers
 - **WebSocket lifecycle updates:** Replace polling with WebSocket push for real-time UI updates
@@ -473,7 +472,7 @@ atlas/
 
 ---
 
-## 🤝 Contributing
+##  Contributing
 
 This project was built for the Superteam Nigeria Advanced Infrastructure Challenge. Contributions, questions, and feedback are welcome!
 
@@ -484,13 +483,13 @@ This project was built for the Superteam Nigeria Advanced Infrastructure Challen
 
 ---
 
-## 📄 License
+##  License
 
 MIT License — see [LICENSE](./LICENSE) for details.
 
 ---
 
-## 🙏 Acknowledgments
+##  Acknowledgments
 
 - [Jito Labs](https://jito.wtf) — for MEV-protected bundles and the tip floor API
 - [Triton One](https://triton.one) — for Yellowstone gRPC protocol and documentation
@@ -500,4 +499,4 @@ MIT License — see [LICENSE](./LICENSE) for details.
 
 ---
 
-*Built with 🖤 on Solana devnet. Treasury: `BmWDEaSQPKCCwGGwxuZiVB8Ld1LEHJMYoRWWovgP1KT6`*
+*Built on Solana devnet. Treasury: `BmWDEaSQPKCCwGGwxuZiVB8Ld1LEHJMYoRWWovgP1KT6`*
