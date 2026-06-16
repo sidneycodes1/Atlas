@@ -1,9 +1,9 @@
 import { NextRequest } from "next/server";
-import { subscribeToTransaction } from "@/lib/yellowstone/client";
+import { subscribeToTransaction } from "@/lib/yellowstone-client";
 import { getConnectionWithFallback } from "@/lib/solana/connection";
 
 export const dynamic = "force-dynamic";
-export const runtime = "edge";
+export const runtime = 'nodejs';
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
@@ -18,7 +18,7 @@ export async function GET(req: NextRequest) {
   const responseStream = new ReadableStream({
     async start(controller) {
       const encoder = new TextEncoder();
-      
+
       const sendEvent = (data: any) => {
         try {
           controller.enqueue(encoder.encode(`data: ${JSON.stringify(data)}\n\n`));
@@ -39,12 +39,12 @@ export async function GET(req: NextRequest) {
         }
         try {
           controller.close();
-        } catch (e) {}
+        } catch (e) { }
       };
 
       try {
         console.log(`[Stream API] Initiating SSE for signature: ${signature} (Simulated: ${isSimulated})`);
-        
+
         if (isSimulated) {
           // Use simulated path from subscribeToTransaction
           const stream = subscribeToTransaction(signature, true, simulationMode);
@@ -64,7 +64,7 @@ export async function GET(req: NextRequest) {
           if (!hasReceivedUpdate && !isClosed) {
             console.warn(`[Stream API] WebSocket connection took too long or failed. Falling back to polling.`);
             isClosed = true; // prevent further yield processing
-            
+
             // Start polling fallback
             cleanup = await startPollingFallback(signature, sendEvent, stopStream);
           }

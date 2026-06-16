@@ -7,6 +7,7 @@ import { Connection, Keypair, LAMPORTS_PER_SOL, PublicKey } from "@solana/web3.j
 import { getAssociatedTokenAddress, getAccount } from "@solana/spl-token";
 import bs58pkg from "bs58";
 const bs58 = (bs58pkg as any).default || bs58pkg;
+import { getDynamicTip } from "@/lib/jito-tips";
 
 function getAuthorityKeypair(): Keypair {
   const secretKeyString = process.env.JITO_AUTH_KEYPAIR;
@@ -54,7 +55,7 @@ export async function POST(req: NextRequest) {
     const authority = getAuthorityKeypair();
     const solBalance = await connection.getBalance(authority.publicKey);
 
-    const tipLamports = 5000; // default standard Jito tip
+    const tipLamports = await getDynamicTip('normal');
     let amountLamports = 0;
     let finalTokenMint: string | undefined = tokenMint;
     let finalTokenAmount: number | undefined = tokenAmount;

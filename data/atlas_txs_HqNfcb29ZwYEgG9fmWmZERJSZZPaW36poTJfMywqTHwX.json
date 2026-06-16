@@ -1,0 +1,33 @@
+[
+  {
+    "signature": "266WDZbTkkWVJWDxytt5zkHnWjyAAAwEVz4QS8XPo1G5TB2BUcokoK4wgKoj5AySmeVbmSXFmScZg1PdBSQwbXxH",
+    "type": "Recovery",
+    "amount": 0.23,
+    "status": "Self-Healing",
+    "timestamp": 1781565178360,
+    "metadata": {
+      "failureType": "low_tip",
+      "recoveryTime": "38.1s",
+      "attempts": 1
+    }
+  },
+  {
+    "signature": "4ewpwoKqD3PSxwjRDayDQ2u4RjweQDhMXjAHuVbzE1vYNL9HWeEb3zREod1D2Fy9mGyvWcfDJirycD4kV27VZg4a",
+    "type": "Recovery",
+    "amount": 0.2,
+    "status": "Self-Healing",
+    "timestamp": 1781563054652,
+    "metadata": {
+      "failureType": "low_tip",
+      "recoveryTime": "25.9s",
+      "attempts": 1
+    }
+  },
+  {
+    "signature": "3PiAmsRQaAH33Eki3ftAVDgNkc84qz68KMXqFdujf3pWEuy5nX7QFANWkfTBmihsdXeSnavxSP2dC1BJJawFJpQq",
+    "type": "Transfer",
+    "amount": 0.3,
+    "status": "Finalized",
+    "timestamp": 1781563008676
+  }
+]

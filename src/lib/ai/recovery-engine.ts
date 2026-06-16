@@ -1,3 +1,6 @@
+import { executeRecovery } from "@/lib/ai/executor";
+import { getDynamicTip } from "../jito-tips";
+
 export interface FailureContext {
   failureType: "expired_blockhash" | "low_tip" | "leader_miss" | "congestion";
   bundleId: string;
@@ -112,7 +115,7 @@ Provide the RecoveryPlan JSON response:`;
       };
 
     case "low_tip":
-      const recommendedTip = Math.max(context.originalTipLamports * 3, 5000);
+      const recommendedTip = await getDynamicTip('retry');
       return {
         observation: "Bundle was rejected due to insufficient Jito tip.",
         reasoning: `The tip of ${context.originalTipLamports} lamports is below the minimum tip threshold required by Jito validators to prioritize this bundle under current network loads.`,
@@ -137,7 +140,7 @@ Provide the RecoveryPlan JSON response:`;
       };
 
     case "congestion":
-      const highTip = Math.max(context.originalTipLamports * 5, 15000);
+      const highTip = await getDynamicTip('retry');
       return {
         observation: "Solana is experiencing intensive write lock and network congestion.",
         reasoning: "The network state is currently high-congestion, leading to packet drops. Transactions must be optimized with updated blockhash and higher Jito tip for priority.",

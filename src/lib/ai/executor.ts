@@ -2,6 +2,7 @@ import { getConnection } from "../solana/connection";
 import { buildTransferBundle, BundleParams } from "../jito/bundle";
 import { submitBundle, BundleResult } from "../jito/submit";
 import { RecoveryPlan } from "./recovery-engine";
+import { getDynamicTip } from "../jito-tips";
 
 export interface ExecutionResult {
   signature: string;
@@ -43,7 +44,7 @@ export async function executeRecovery(
       break;
 
     case "increase_tip":
-      newTipLamports = plan.action.newTipLamports || originalParams.tipLamports * 3;
+      newTipLamports = plan.action.newTipLamports || await getDynamicTip('retry');
       console.log(`[Executor] Increasing Jito tip to: ${newTipLamports} lamports`);
       recoveryParams.tipLamports = newTipLamports;
       break;
@@ -59,7 +60,7 @@ export async function executeRecovery(
       const freshBlockhash = await connection.getLatestBlockhash("confirmed");
       recoveryParams.blockhash = freshBlockhash.blockhash;
       newBlockhash = true;
-      newTipLamports = plan.action.newTipLamports || originalParams.tipLamports * 5;
+      newTipLamports = plan.action.newTipLamports || await getDynamicTip('retry');
       recoveryParams.tipLamports = newTipLamports;
       break;
   }
