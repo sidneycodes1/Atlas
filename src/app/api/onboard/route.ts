@@ -50,7 +50,7 @@ export async function POST(request: Request) {
     const { Connection: SolConnection } = await import('@solana/web3.js');
     const publicConn = new SolConnection('https://api.devnet.solana.com', 'confirmed');
     const treasuryBalance = await publicConn.getBalance(treasuryKeypair.publicKey);
-    console.log('[Onboard] Treasury balance check:', treasuryBalance / 1e9, 'SOL');
+    console.log('[Onboard] Treasury balance (public RPC):', treasuryBalance / 1e9, 'SOL (v2)');
     const fundsNeeded = 0.5 * LAMPORTS_PER_SOL + 5000; // 0.5 SOL + fee buffer
     
     if (treasuryBalance < fundsNeeded) {

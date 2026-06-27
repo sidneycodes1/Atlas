@@ -55,6 +55,12 @@ export default function DashboardPage() {
   const [isSignOutModalOpen, setIsSignOutModalOpen] = useState(false);
   const [isDepositModalOpen, setIsDepositModalOpen] = useState(false);
 
+  useEffect(() => {
+    if (ready && !authenticated) {
+      router.push('/');
+    }
+  }, [ready, authenticated, router]);
+
   // Derive identity values
   const userEmail = user?.email?.address;
   const identityChar = userEmail ? userEmail.charAt(0).toUpperCase() : "W";
