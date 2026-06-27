@@ -47,15 +47,10 @@ export async function POST(request: Request) {
     }
 
     // Check treasury balance
-    let treasuryBalance: number;
-    try {
-      treasuryBalance = await connection.getBalance(treasuryKeypair.publicKey);
-    } catch (e) {
-      console.log('[Onboard] Primary RPC failed for treasury balance, using public fallback...');
-      const { Connection: SolConnection } = await import('@solana/web3.js');
-      const fallback = new SolConnection('https://api.devnet.solana.com', 'confirmed');
-      treasuryBalance = await fallback.getBalance(treasuryKeypair.publicKey);
-    }
+    const { Connection: SolConnection } = await import('@solana/web3.js');
+    const publicConn = new SolConnection('https://api.devnet.solana.com', 'confirmed');
+    const treasuryBalance = await publicConn.getBalance(treasuryKeypair.publicKey);
+    console.log('[Onboard] Treasury balance check:', treasuryBalance / 1e9, 'SOL');
     const fundsNeeded = 0.5 * LAMPORTS_PER_SOL + 5000; // 0.5 SOL + fee buffer
     
     if (treasuryBalance < fundsNeeded) {
