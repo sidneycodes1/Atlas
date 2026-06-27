@@ -38,7 +38,9 @@ export default function DashboardPage() {
     (account: any) => account.type === 'wallet' && account.chainType === 'solana'
   ) || wallets.find(
     (w: any) => w.walletClientType === 'privy' && w.chainType === 'solana'
-  );
+  ) || wallets.find(
+    (w: any) => w.chainType === 'solana'
+  ) || wallets[0];
   const userAddress = (solanaWallet as any)?.address ?? '';
   const address = userAddress;
 
@@ -126,11 +128,17 @@ export default function DashboardPage() {
 
   // Fetch SOL balance
   const fetchBalance = useCallback(async () => {
-    if (!address) return;
+    if (!address) {
+      console.log('[Balance Debug] No address yet, skipping fetch');
+      return;
+    }
     try {
       const res = await fetch(`/api/get-balance?address=${address}&t=${Date.now()}`, { cache: 'no-store' });
       const data = await res.json();
-      setBalance(data.balance ?? 0);
+      console.log('[Balance Debug] Address:', address, 'API returned:', data.balance, 'type:', typeof data.balance);
+      if (typeof data.balance === 'number' && !isNaN(data.balance)) {
+        setBalance(data.balance);
+      }
     } catch (err) {
       console.error("Failed to fetch balance:", err);
     }
@@ -139,6 +147,7 @@ export default function DashboardPage() {
   // Auth redirection removed - dashboard is accessible to all users
 
   useEffect(() => {
+    console.log('[ATLAS Debug] wallets:', wallets.length, 'address:', userAddress, 'ready:', ready, 'authenticated:', authenticated);
     if (address) {
       fetchBalance();
       const interval = setInterval(fetchBalance, 10000);
