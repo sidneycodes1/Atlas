@@ -24,6 +24,9 @@ export function getConnection(): Connection {
 }
 
 export async function getConnectionWithFallback(): Promise<Connection> {
-  return new Connection('https://api.devnet.solana.com', 'confirmed');
+  const rpcUrl = process.env.SOLANA_RPC_URL || 
+                 process.env.SOLINFRA_RPC_URL || 
+                 'https://api.devnet.solana.com';
+  return new Connection(rpcUrl, 'confirmed');
 }
 

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { X, Send, Cpu, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import LifecycleTracker, { Step } from "./LifecycleTracker";
@@ -46,6 +46,16 @@ export default function TransactionPortal({
   const [simulateFailure, setSimulateFailure] = useState(false);
   const [failureModeIndex, setFailureModeIndex] = useState(0);
   const FAILURE_MODES = ["low_tip", "expired_blockhash", "leader_miss", "congestion"];
+
+  useEffect(() => {
+    if (!isOpen) {
+      setToAddress("");
+      setAmountSol("");
+      setAsset("SOL");
+      setSimulateFailure(false);
+      setFailureModeIndex(0);
+    }
+  }, [isOpen]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();

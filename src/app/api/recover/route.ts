@@ -8,7 +8,7 @@ const bs58 = (bs58pkg as any).default || bs58pkg;
 export const dynamic = "force-dynamic";
 
 function getAuthorityKeypair(): Keypair {
-  const secretKeyString = process.env.JITO_AUTH_KEYPAIR;
+  const secretKeyString = process.env.ATLAS_TREASURY_KEYPAIR;
   if (!secretKeyString) {
     return Keypair.generate();
   }

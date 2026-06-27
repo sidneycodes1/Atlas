@@ -19,6 +19,21 @@ export default function DashboardPage() {
   const { wallets } = useWallets();
   const router = useRouter();
 
+  const abortControllerRef = useRef<AbortController | null>(null);
+  const eventSourceRef = useRef<EventSource | null>(null);
+
+  const handleClosePortal = () => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    if (eventSourceRef.current) {
+      eventSourceRef.current.close();
+    }
+    setIsPortalOpen(false);
+    resetSteps();
+    setIsTransferLoading(false);
+  };
+
   const solanaWallet = user?.linkedAccounts?.find(
     (account: any) => account.type === 'wallet' && account.chainType === 'solana'
   ) || wallets.find(
@@ -273,9 +288,11 @@ export default function DashboardPage() {
     updateStep(0, "pending", "Building Jito Transfer Bundle...");
 
     try {
+      abortControllerRef.current = new AbortController();
       const res = await fetch("/api/submit-transfer", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        signal: abortControllerRef.current.signal,
         body: JSON.stringify({
           toAddress: data.toAddress.trim(),
           amountSol: data.amountSol,
@@ -314,9 +331,11 @@ export default function DashboardPage() {
         });
 
         // Make recovery request
+        abortControllerRef.current = new AbortController();
         const recoveryRes = await fetch("/api/recover", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
+          signal: abortControllerRef.current.signal,
           body: JSON.stringify({
             failureContext: {
               failureType: data.failureMode,
@@ -389,6 +408,7 @@ export default function DashboardPage() {
                   const eventSource = new EventSource(
                     `/api/stream-transaction?signature=${result.signature}&simulated=true`
                   );
+                  eventSourceRef.current = eventSource;
 
                   eventSource.onmessage = async (event) => {
                     const update = JSON.parse(event.data);
@@ -461,6 +481,7 @@ export default function DashboardPage() {
         const eventSource = new EventSource(
           `/api/stream-transaction?signature=${signature}&simulated=${!isRealTx}`
         );
+        eventSourceRef.current = eventSource;
 
         eventSource.onmessage = async (event) => {
           const update = JSON.parse(event.data);
@@ -621,7 +642,7 @@ export default function DashboardPage() {
       {/* Transaction Portal Slide-In Widget */}
       <TransactionPortal
         isOpen={isPortalOpen}
-        onClose={() => setIsPortalOpen(false)}
+        onClose={handleClosePortal}
         onSubmit={handleTransferSubmit}
         isLoading={isTransferLoading}
         steps={steps}

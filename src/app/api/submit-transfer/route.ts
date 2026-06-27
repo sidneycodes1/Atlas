@@ -9,8 +9,15 @@ import bs58pkg from "bs58";
 const bs58 = (bs58pkg as any).default || bs58pkg;
 import { getDynamicTip } from "@/lib/jito-tips";
 
+async function getAuthorityBalance(authority: Keypair): Promise<number> {
+  const publicConn = new Connection('https://api.devnet.solana.com', 'confirmed');
+  const balance = await publicConn.getBalance(authority.publicKey);
+  console.log(`[Submit] Authority balance check: ${balance / 1e9} SOL (${authority.publicKey.toBase58()})`);
+  return balance;
+}
+
 function getAuthorityKeypair(): Keypair {
-  const secretKeyString = process.env.JITO_AUTH_KEYPAIR;
+  const secretKeyString = process.env.ATLAS_TREASURY_KEYPAIR;
   if (!secretKeyString) {
     return Keypair.generate();
   }
@@ -53,7 +60,7 @@ export async function POST(req: NextRequest) {
     console.log('[RPC] Requesting connection with fallback...');
     const connection = await getConnectionWithFallback();
     const authority = getAuthorityKeypair();
-    const solBalance = await connection.getBalance(authority.publicKey);
+    const solBalance = await getAuthorityBalance(authority);
 
     const tipLamports = await getDynamicTip('normal');
     let amountLamports = 0;
@@ -71,7 +78,8 @@ export async function POST(req: NextRequest) {
         const publicConnection = new Connection("https://api.devnet.solana.com", "confirmed");
         const senderAccount = await getAccount(publicConnection, senderAta);
         const usdcBalance = Number(senderAccount.amount);
-        if (usdcBalance < tokenAmount) {
+        const tokenAmountUnits = Math.floor(parseFloat(amountSol) * 1_000_000);
+        if (usdcBalance < tokenAmountUnits) {
           return NextResponse.json({
             error: `Insufficient authority ATLAS-USD balance. Authority Address: ${authority.publicKey.toBase58()}. Balance: ${(usdcBalance / Math.pow(10, tokenDecimals)).toFixed(4)} ATLAS-USD. Required: ${amountSol} ATLAS-USD.`
           }, { status: 400 });
@@ -96,7 +104,14 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    const latestBlockhash = await connection.getLatestBlockhash("confirmed");
+    let latestBlockhash: { blockhash: string; lastValidBlockHeight: number };
+    try {
+      latestBlockhash = await connection.getLatestBlockhash("confirmed");
+    } catch (e) {
+      console.log('[Submit] Primary RPC failed for blockhash, using public fallback...');
+      const publicConn = new Connection('https://api.devnet.solana.com', 'confirmed');
+      latestBlockhash = await publicConn.getLatestBlockhash("confirmed");
+    }
 
     let params: BundleParams = {
       fromKeypair: authority,
@@ -131,7 +146,7 @@ export async function POST(req: NextRequest) {
       originalParams: {
         toAddress: cleanToAddress,
         amountLamports,
-        tipLamports,
+        tipLamports: params.tipLamports,
         blockhash: latestBlockhash.blockhash,
         asset,
         tokenMint: finalTokenMint,

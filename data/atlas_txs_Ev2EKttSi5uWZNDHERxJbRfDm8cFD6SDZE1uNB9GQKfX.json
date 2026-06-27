@@ -1,0 +1,21 @@
+[
+  {
+    "signature": "4hZ7ZyNyLcibt7bqQtSEaSCu4Viar33PLk9qGg9dYcQMhkqUGE5sAdDJLRQfZJqRDskDQbfnUJMutBJz4XLZZxVD",
+    "type": "Transfer",
+    "amount": 0.0001,
+    "status": "Failed",
+    "timestamp": 1782406879346
+  },
+  {
+    "signature": "5dm9mEo5hw2AhcemBsoYNTgUGofdiAzMHikQCGfg7zCoAWoMaQmqesWUxUMLqpMZqjcwGSZzfTVXKEomVyhcLCBA",
+    "type": "Recovery",
+    "amount": 0.1,
+    "status": "Self-Healing",
+    "timestamp": 1782057645096,
+    "metadata": {
+      "failureType": "low_tip",
+      "recoveryTime": "29.5s",
+      "attempts": 1
+    }
+  }
+]

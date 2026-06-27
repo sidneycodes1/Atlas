@@ -26,13 +26,13 @@ export async function POST(request: Request) {
     // Parse treasury keypair from env
     let treasurySecret: number[];
     try {
-      treasurySecret = JSON.parse(process.env.JITO_AUTH_KEYPAIR || '[]');
+      treasurySecret = JSON.parse(process.env.ATLAS_TREASURY_KEYPAIR || '[]');
     } catch {
-      throw new Error('Invalid JITO_AUTH_KEYPAIR format');
+      throw new Error('Invalid ATLAS_TREASURY_KEYPAIR format');
     }
 
     if (!treasurySecret || treasurySecret.length === 0) {
-      throw new Error('JITO_AUTH_KEYPAIR not found or invalid');
+      throw new Error('ATLAS_TREASURY_KEYPAIR not found or invalid');
     }
 
     const treasuryKeypair = Keypair.fromSecretKey(Uint8Array.from(treasurySecret));
@@ -47,7 +47,15 @@ export async function POST(request: Request) {
     }
 
     // Check treasury balance
-    const treasuryBalance = await connection.getBalance(treasuryKeypair.publicKey);
+    let treasuryBalance: number;
+    try {
+      treasuryBalance = await connection.getBalance(treasuryKeypair.publicKey);
+    } catch (e) {
+      console.log('[Onboard] Primary RPC failed for treasury balance, using public fallback...');
+      const { Connection: SolConnection } = await import('@solana/web3.js');
+      const fallback = new SolConnection('https://api.devnet.solana.com', 'confirmed');
+      treasuryBalance = await fallback.getBalance(treasuryKeypair.publicKey);
+    }
     const fundsNeeded = 0.5 * LAMPORTS_PER_SOL + 5000; // 0.5 SOL + fee buffer
     
     if (treasuryBalance < fundsNeeded) {
@@ -61,7 +69,15 @@ export async function POST(request: Request) {
       lamports: 0.5 * LAMPORTS_PER_SOL,
     });
 
-    const recentBlockhash = await connection.getLatestBlockhash();
+    let recentBlockhash: { blockhash: string; lastValidBlockHeight: number };
+    try {
+      recentBlockhash = await connection.getLatestBlockhash();
+    } catch (e) {
+      console.log('[Onboard] Primary RPC failed for blockhash, using public fallback...');
+      const { Connection: SolConn } = await import('@solana/web3.js');
+      const fallback = new SolConn('https://api.devnet.solana.com', 'confirmed');
+      recentBlockhash = await fallback.getLatestBlockhash();
+    }
     const transaction = new Transaction({
       recentBlockhash: recentBlockhash.blockhash,
       feePayer: treasuryKeypair.publicKey,
@@ -71,12 +87,26 @@ export async function POST(request: Request) {
     const txnBuffer = transaction.serialize();
     
     console.log('[ONBOARD] Sending 0.5 SOL to:', walletAddress);
-    const signature = await connection.sendRawTransaction(txnBuffer);
+    let signature: string;
+    try {
+      signature = await connection.sendRawTransaction(txnBuffer);
+    } catch (e) {
+      console.log('[Onboard] Primary RPC failed for sendRawTransaction, using public fallback...');
+      const { Connection: SolConn } = await import('@solana/web3.js');
+      const fallback = new SolConn('https://api.devnet.solana.com', 'confirmed');
+      signature = await fallback.sendRawTransaction(txnBuffer);
+    }
     
     console.log('[Onboard API] Transaction sent:', signature);
 
     // Wait for confirmation
-    await connection.confirmTransaction(signature, 'confirmed');
+    try {
+      await connection.confirmTransaction(signature, 'confirmed');
+    } catch (e) {
+      const { Connection: SolConn } = await import('@solana/web3.js');
+      const fallback = new SolConn('https://api.devnet.solana.com', 'confirmed');
+      await fallback.confirmTransaction(signature, 'confirmed');
+    }
     console.log('[Onboard API] Transaction confirmed:', signature);
     console.log('[ONBOARD] Transfer complete. Signature:', signature);
 
