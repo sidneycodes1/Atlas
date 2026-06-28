@@ -37,10 +37,8 @@ export default function DashboardPage() {
   const solanaWallet = user?.linkedAccounts?.find(
     (account: any) => account.type === 'wallet' && account.chainType === 'solana'
   ) || wallets.find(
-    (w: any) => w.walletClientType === 'privy' && w.chainType === 'solana'
-  ) || wallets.find(
     (w: any) => w.chainType === 'solana'
-  ) || wallets[0];
+  );
   const userAddress = (solanaWallet as any)?.address ?? '';
   const address = userAddress;
 
