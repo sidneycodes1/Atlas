@@ -55,9 +55,9 @@ export default function DashboardPage() {
 
   useEffect(() => {
     if (ready && !authenticated) {
-      router.push('/');
+      router.replace('/');
     }
-  }, [ready, authenticated, router]);
+  }, [ready, authenticated]);
 
   // Derive identity values
   const userEmail = user?.email?.address;
