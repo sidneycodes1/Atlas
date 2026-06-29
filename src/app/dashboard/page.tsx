@@ -178,6 +178,8 @@ export default function DashboardPage() {
         if (d.success) {
           localStorage.setItem(`atlas_funded_${userAddress}`, 'true');
           fetchBalance();
+          setTimeout(fetchBalance, 3000);
+          setTimeout(fetchBalance, 6000);
         }
       })
       .catch(e => console.error('[ATLAS] Onboard failed:', e));
@@ -208,6 +210,8 @@ export default function DashboardPage() {
       }
 
       await fetchBalance();
+      setTimeout(fetchBalance, 3000);
+      setTimeout(fetchBalance, 6000);
       showToast("0.5 SOL added!");
       
       // Add airdrop transaction to local history
@@ -447,8 +451,9 @@ export default function DashboardPage() {
                         },
                       };
                       saveTransactions([newTx, ...transactions]);
-                      refreshBalance();
-                      refreshBalanceDelayed();
+                      fetchBalance();
+                      setTimeout(fetchBalance, 3000);
+                      setTimeout(fetchBalance, 6000);
                       setIsTransferLoading(false);
                       showToast("Transaction confirmed");
                     } else if (update.stage === "failed") {
@@ -517,8 +522,9 @@ export default function DashboardPage() {
               timestamp: Date.now(),
             };
             saveTransactions([newTx, ...transactions]);
-            refreshBalance();
-            refreshBalanceDelayed();
+            fetchBalance();
+            setTimeout(fetchBalance, 3000);
+            setTimeout(fetchBalance, 6000);
             setIsTransferLoading(false);
             showToast("Transaction confirmed");
           } else if (update.stage === "failed") {
