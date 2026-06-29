@@ -63,15 +63,10 @@ export async function POST(request: Request) {
       lamports: 0.5 * LAMPORTS_PER_SOL,
     });
 
-    let recentBlockhash: { blockhash: string; lastValidBlockHeight: number };
-    try {
-      recentBlockhash = await connection.getLatestBlockhash();
-    } catch (e) {
-      console.log('[Onboard] Primary RPC failed for blockhash, using public fallback...');
-      const { Connection: SolConn } = await import('@solana/web3.js');
-      const fallback = new SolConn('https://api.devnet.solana.com', 'confirmed');
-      recentBlockhash = await fallback.getLatestBlockhash();
-    }
+    // Use publicConn for everything to ensure blockhash and 
+    // sendRawTransaction are on the same RPC node
+    const recentBlockhash = await publicConn.getLatestBlockhash('confirmed');
+
     const transaction = new Transaction({
       recentBlockhash: recentBlockhash.blockhash,
       feePayer: treasuryKeypair.publicKey,
@@ -81,28 +76,13 @@ export async function POST(request: Request) {
     const txnBuffer = transaction.serialize();
     
     console.log('[ONBOARD] Sending 0.5 SOL to:', walletAddress);
-    let signature: string;
-    try {
-      signature = await connection.sendRawTransaction(txnBuffer);
-    } catch (e) {
-      console.log('[Onboard] Primary RPC failed for sendRawTransaction, using public fallback...');
-      const { Connection: SolConn } = await import('@solana/web3.js');
-      const fallback = new SolConn('https://api.devnet.solana.com', 'confirmed');
-      signature = await fallback.sendRawTransaction(txnBuffer);
-    }
-    
-    console.log('[Onboard API] Transaction sent:', signature);
+    const signature = await publicConn.sendRawTransaction(txnBuffer, {
+      skipPreflight: false,
+      preflightCommitment: 'confirmed',
+    });
 
-    // Wait for confirmation
-    try {
-      await connection.confirmTransaction(signature, 'confirmed');
-    } catch (e) {
-      const { Connection: SolConn } = await import('@solana/web3.js');
-      const fallback = new SolConn('https://api.devnet.solana.com', 'confirmed');
-      await fallback.confirmTransaction(signature, 'confirmed');
-    }
-    console.log('[Onboard API] Transaction confirmed:', signature);
-    console.log('[ONBOARD] Transfer complete. Signature:', signature);
+    console.log('[Onboard API] Transaction sent:', signature);
+    await publicConn.confirmTransaction(signature, 'confirmed');
 
     // Mark user as funded
     markUserAsFunded(walletAddress);
